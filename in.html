@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arsip Artikel Dahlan Iskan</title>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <!-- Firebase App & Auth CDN (Modular v9) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        
+        window.firebaseModules = { initializeApp, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged };
+    </script>
+    <style>
+        body { background-color: #0a0a0a; color: #e5e5e5; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #171717; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #404040; border-radius: 3px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans selection:bg-emerald-500 selection:text-black">
+
+    <!-- Header / Navbar -->
+    <header class="border-b border-neutral-800 bg-neutral-900/60 backdrop-blur sticky top-0 z-30">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                    <span class="inline-block w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></span>
+                    Arsip Dahlan Iskan
+                </h1>
+                <p class="text-xs text-neutral-400 mt-0.5">Database Artikel Harian & Pelacak Bacaan</p>
+            </div>
+
+            <!-- Auth & Source Actions -->
+            <div class="flex items-center gap-3">
+                <button id="auth-btn" onclick="handleAuthAction()" class="hidden text-xs font-medium px-4 py-2 rounded-lg bg-white text-black hover:bg-neutral-200 transition flex items-center gap-2 shadow-sm">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35 11.1h-9.17v2.73h5.51c-.24 1.25-1.04 2.31-2.22 3.03v2.51h3.59c2.1-1.93 3.31-4.78 3.31-8.17 0-.74-.07-1.46-.22-2.1z"/><path fill="currentColor" d="M12.18 21.5c3.24 0 5.96-1.07 7.95-2.91l-3.59-2.51c-1.08.72-2.45 1.15-4.36 1.15-3.36 0-6.21-2.27-7.22-5.32H1.23v2.59c2.01 3.99 6.13 6.75 10.95 6.75z"/><path fill="currentColor" d="M4.96 11.91c-.26-.78-.41-1.61-.41-2.41 0-.8.15-1.63.41-2.41V4.5H1.23C.45 6.07 0 7.98 0 10s.45 3.93 1.23 5.5l3.73-2.59z"/><path fill="currentColor" d="M12.18 4.88c1.76 0 3.34.61 4.58 1.8l3.43-3.43C18.14 1.34 15.42 0 12.18 0 7.36 0 3.24 2.76 1.23 6.75l3.73 2.59c1.01-3.05 3.86-5.32 7.22-5.32z"/></svg>
+                    <span id="auth-text">Login Google</span>
+                </button>
+                <div id="user-profile" class="hidden items-center gap-2 text-xs bg-neutral-800 px-3 py-1.5 rounded-lg border border-neutral-700">
+                    <img id="user-avatar" src="" alt="Avatar" class="w-5 h-5 rounded-full">
+                    <span id="user-name" class="font-medium text-neutral-200"></span>
+                    <button onclick="handleLogout()" class="text-neutral-400 hover:text-red-400 ml-2 font-bold">✕</button>
+                </div>
+                <button onclick="openConfigModal()" class="text-xs text-neutral-400 hover:text-white bg-neutral-800 hover:bg-neutral-700 px-3 py-2 rounded-lg transition border border-neutral-700">
+                    Pengaturan Sumber JSON
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto px-4 py-8 flex-grow w-full">
+        
+        <!-- Controls & Search Filter -->
+        <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 mb-6 shadow-lg flex flex-col md:flex-row gap-4 justify-between items-center">
+            <!-- Search Bar -->
+            <div class="relative w-full md:w-96">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-neutral-500">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </span>
+                <input type="text" id="searchInput" oninput="handleSearch()" placeholder="Cari judul, tanggal, atau isi artikel..." 
+                    class="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition">
+            </div>
+
+            <!-- Filters & Stats -->
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+                <!-- Status Filter -->
+                <div class="flex bg-neutral-950 border border-neutral-800 rounded-xl p-1 text-xs">
+                    <button onclick="setReadFilter('all')" id="filter-all" class="px-3 py-1.5 rounded-lg font-medium bg-neutral-800 text-white transition">Semua</button>
+                    <button onclick="setReadFilter('unread')" id="filter-unread" class="px-3 py-1.5 rounded-lg font-medium text-neutral-400 hover:text-white transition">Belum Dibaca</button>
+                    <button onclick="setReadFilter('read')" id="filter-read" class="px-3 py-1.5 rounded-lg font-medium text-neutral-400 hover:text-white transition">Sudah Dibaca</button>
+                </div>
+
+                <!-- Per Page Selector -->
+                <select id="itemsPerPage" onchange="changePerPage()" class="bg-neutral-950 border border-neutral-800 text-neutral-300 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-emerald-500 transition">
+                    <option value="10">10 / hal</option>
+                    <option value="20" selected>20 / hal</option>
+                    <option value="50">50 / hal</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Info Bar Status Baca -->
+        <div id="readStatsBar" class="text-xs text-neutral-400 mb-4 px-1 flex justify-between items-center">
+            <span id="statsText">Memuat statistik bacaan...</span>
+            <button onclick="markAllAsRead()" class="text-emerald-400 hover:underline hidden" id="markAllBtn">Tandai semua sudah dibaca</button>
+        </div>
+
+        <!-- Article List Container -->
+        <div id="articleList" class="space-y-3">
+            <!-- Dynamic items loaded here -->
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="py-20 text-center">
+            <div class="inline-block w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+            <p class="text-sm text-neutral-400">Memuat database artikel dari GitHub...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden py-20 text-center bg-neutral-900/50 border border-neutral-800/60 rounded-2xl">
+            <p class="text-neutral-400 text-sm">Tidak ada artikel yang cocok dengan pencarian atau filter kamu.</p>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div id="paginationContainer" class="hidden mt-8 flex justify-between items-center bg-neutral-900 border border-neutral-800 px-4 py-3 rounded-xl">
+            <button onclick="prevPage()" id="prevBtn" class="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-medium rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition">Sebelumnya</button>
+            <span id="pageInfo" class="text-xs text-neutral-400">Halaman 1 dari 1</span>
+            <button onclick="nextPage()" id="nextBtn" class="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-medium rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition">Berikutnya</button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-neutral-800 py-6 text-center text-xs text-neutral-500 mt-auto">
+        <p>Arsip Artikel Dahlan Iskan &bull; Terhubung ke GitHub Database</p>
+    </footer>
+
+    <!-- Modal Detail Artikel -->
+    <div id="articleModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-neutral-800 flex justify-between items-start gap-4 bg-neutral-950/50">
+                <div>
+                    <span id="modalDate" class="text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20"></span>
+                    <h2 id="modalTitle" class="text-lg font-bold text-white mt-2 leading-snug"></h2>
+                </div>
+                <button onclick="closeModal()" class="text-neutral-400 hover:text-white bg-neutral-800 hover:bg-neutral-700 p-2 rounded-xl transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <!-- Modal Body (Content) - Menggunakan innerHTML agar tag <p> dan paragraf asli tampil rapi -->
+            <div id="modalContent" class="p-6 overflow-y-auto custom-scrollbar space-y-4 text-neutral-300 text-sm leading-relaxed flex-grow">
+                <!-- Content text -->
+            </div>
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-neutral-800 bg-neutral-950/50 flex justify-between items-center">
+                <a id="modalSourceLink" href="#" target="_blank" class="text-xs text-emerald-400 hover:underline flex items-center gap-1.5">
+                    Baca di Sumber Asli &nearr;
+                </a>
+                <div class="flex items-center gap-3">
+                    <button id="modalToggleReadBtn" onclick="toggleCurrentModalReadStatus()" class="text-xs px-3 py-1.5 rounded-lg border border-neutral-700 bg-neutral-800 text-white hover:bg-neutral-700 transition">
+                        Tandai Belum Dibaca
+                    </button>
+                    <button onclick="closeModal()" class="px-4 py-2 bg-white text-black hover:bg-neutral-200 text-xs font-medium rounded-lg transition">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Konfigurasi JSON URL -->
+    <div id="configModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+            <h3 class="text-base font-bold text-white mb-2">Konfigurasi Sumber JSON</h3>
+            <p class="text-xs text-neutral-400 mb-4">Masukkan URL Raw GitHub atau file JSON artikel Anda.</p>
+            
+            <input type="text" id="jsonUrlInput" placeholder="https://raw.githubusercontent.com/username/repo/main/dahlan_articles.json" 
+                class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-emerald-500 mb-4">
+            
+            <div class="flex justify-end gap-2">
+                <button onclick="closeConfigModal()" class="px-4 py-2 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 text-xs font-medium rounded-xl transition">Batal</button>
+                <button onclick="saveJsonUrl()" class="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-500 text-xs font-semibold rounded-xl transition">Simpan & Muat Ulang</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Utama -->
+    <script>
+        // --- KONFIGURASI FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "GANTI_DENGAN_API_KEY_ANDA",
+            authDomain: "GANTI_DENGAN_AUTH_DOMAIN.firebaseapp.com",
+            projectId: "GANTI_DENGAN_PROJECT_ID",
+            storageBucket: "GANTI_DENGAN_STORAGE_BUCKET.appspot.com",
+            messagingSenderId: "GANTI_DENGAN_MESSAGING_SENDER_ID",
+            appId: "GANTI_DENGAN_APP_ID"
+        };
+
+        let auth, googleProvider, currentUser = null;
+        let isFirebaseConfigured = false;
+
+        if (firebaseConfig.apiKey !== "GANTI_DENGAN_API_KEY_ANDA") {
+            try {
+                const app = window.firebaseModules.initializeApp(firebaseConfig);
+                auth = window.firebaseModules.getAuth(app);
+                googleProvider = new window.firebaseModules.GoogleAuthProvider();
+                isFirebaseConfigured = true;
+
+                window.firebaseModules.onAuthStateChanged(auth, (user) => {
+                    currentUser = user;
+                    updateAuthUI();
+                    loadReadArticles();
+                    renderArticles();
+                });
+            } catch (e) {
+                console.log("Firebase init error:", e);
+            }
+        }
+
+        function handleAuthAction() {
+            if (!isFirebaseConfigured) {
+                alert("Konfigurasi Firebase belum diisi di dalam kode HTML (firebaseConfig). Silakan atur terlebih dahulu untuk menggunakan fitur Login Google.");
+                openConfigModal();
+                return;
+            }
+            window.firebaseModules.signInWithPopup(auth, googleProvider)
+                .catch((error) => console.error("Login Error:", error));
+        }
+
+        function handleLogout() {
+            if (auth) {
+                window.firebaseModules.signOut(auth).then(() => {
+                    currentUser = null;
+                    updateAuthUI();
+                    loadReadArticles();
+                    renderArticles();
+                });
+            }
+        }
+
+        function updateAuthUI() {
+            const authBtn = document.getElementById('auth-btn');
+            const userProfile = document.getElementById('user-profile');
+            
+            if (!isFirebaseConfigured) {
+                authBtn.classList.remove('hidden');
+                userProfile.classList.add('hidden');
+                document.getElementById('auth-text').innerText = 'Login Google (Setup Required)';
+                return;
+            }
+
+            if (currentUser) {
+                authBtn.classList.add('hidden');
+                userProfile.classList.remove('hidden');
+                document.getElementById('user-avatar').src = currentUser.photoURL || 'https://via.placeholder.com/150';
+                document.getElementById('user-name').innerText = currentUser.displayName || currentUser.email;
+            } else {
+                authBtn.classList.remove('hidden');
+                userProfile.classList.add('hidden');
+                document.getElementById('auth-text').innerText = 'Login Google';
+            }
+        }
+
+        // --- STATE APLIKASI ARTIKEL ---
+        let allArticles = [];
+        let filteredArticles = [];
+        let readArticleIds = new Set();
+        let currentPage = 1;
+        let itemsPerPage = 20;
+        let currentFilter = 'all';
+        let currentActiveArticleIndex = null;
+
+        // Default Raw URL GitHub yang benar sesuai permintaan
+        let jsonUrl = localStorage.getItem('dahlan_json_url') || 'https://raw.githubusercontent.com/enggariel/disway/main/dahlan_articles.json';
+
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('jsonUrlInput').value = jsonUrl;
+            updateAuthUI();
+            fetchArticles();
+        });
+
+        async function fetchArticles() {
+            showLoading(true);
+            try {
+                const response = await fetch(jsonUrl);
+                if (!response.ok) throw new Error('Gagal mengambil file JSON');
+                const data = await response.json();
+                
+                allArticles = Array.isArray(data) ? data : (data.articles || []);
+                
+                loadReadArticles();
+                filterAndRender();
+            } catch (error) {
+                console.error(error);
+                document.getElementById('loadingState').innerHTML = `
+                    <p class="text-red-400 text-sm mb-2">Gagal memuat database artikel dari URL saat ini.</p>
+                    <p class="text-neutral-500 text-xs mb-4">Pastikan repository sudah Public atau URL Raw GitHub benar.</p>
+                    <button onclick="openConfigModal()" class="px-4 py-2 bg-neutral-800 text-white text-xs rounded-xl hover:bg-neutral-700 transition">Atur Ulang URL JSON</button>
+                `;
+            }
+        }
+
+        // --- SISTEM PELACAKAN ARTIKEL DIBACA ---
+        function getStorageKey() {
+            const uid = currentUser ? currentUser.uid : 'guest';
+            return `dahlan_read_articles_${uid}`;
+        }
+
+        function loadReadArticles() {
+            try {
+                const saved = localStorage.getItem(getStorageKey());
+                if (saved) {
+                    readArticleIds = new Set(JSON.parse(saved));
+                } else {
+                    readArticleIds = new Set();
+                }
+            } catch (e) {
+                readArticleIds = new Set();
+            }
+        }
+
+        function saveReadArticles() {
+            try {
+                localStorage.setItem(getStorageKey(), JSON.stringify(Array.from(readArticleIds)));
+            } catch (e) {}
+        }
+
+        function toggleReadStatus(identifier) {
+            if (readArticleIds.has(identifier)) {
+                readArticleIds.delete(identifier);
+            } else {
+                readArticleIds.add(identifier);
+            }
+            saveReadArticles();
+            filterAndRender();
+        }
+
+        function markAllAsRead() {
+            filteredArticles.forEach(art => {
+                const id = art.url || art.title;
+                readArticleIds.add(id);
+            });
+            saveReadArticles();
+            filterAndRender();
+        }
+
+        // --- FORMAT TANGGAL INDONESIA ---
+        function formatIndonesianDate(dateString) {
+            if (!dateString) return "Tanggal tidak tersedia";
+            const date = new Date(dateString);
+            if (!isNaN(date.getTime())) {
+                const months = [
+                    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+                    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+                ];
+                const day = date.getDate();
+                const month = months[date.getMonth()];
+                const year = date.getFullYear();
+                return `${day} ${month} ${year}`;
+            }
+            return dateString;
+        }
+
+        // --- PENCARIAN & FILTER ---
+        function handleSearch() {
+            currentPage = 1;
+            filterAndRender();
+        }
+
+        function setReadFilter(filterType) {
+            currentFilter = filterType;
+            currentPage = 1;
+            
+            ['all', 'unread', 'read'].forEach(type => {
+                const btn = document.getElementById(`filter-${type}`);
+                if (type === filterType) {
+                    btn.className = "px-3 py-1.5 rounded-lg font-medium bg-neutral-800 text-white transition";
+                } else {
+                    btn.className = "px-3 py-1.5 rounded-lg font-medium text-neutral-400 hover:text-white transition";
+                }
+            });
+
+            filterAndRender();
+        }
+
+        function changePerPage() {
+            itemsPerPage = parseInt(document.getElementById('itemsPerPage').value);
+            currentPage = 1;
+            renderArticles();
+        }
+
+        function filterAndRender() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            filteredArticles = allArticles.filter(art => {
+                const title = (art.title || "").toLowerCase();
+                const date = (art.date || "").toLowerCase();
+                const content = (art.content || "").toLowerCase();
+                
+                const matchesSearch = title.includes(query) || date.includes(query) || content.includes(query);
+                
+                if (!matchesSearch) return false;
+
+                const identifier = art.url || art.title;
+                const isRead = readArticleIds.has(identifier);
+
+                if (currentFilter === 'unread' && isRead) return false;
+                if (currentFilter === 'read' && !isRead) return false;
+
+                return true;
+            });
+
+            renderStats();
+            renderArticles();
+        }
+
+        function renderStats() {
+            const total = allArticles.length;
+            const readCount = allArticles.filter(art => readArticleIds.has(art.url || art.title)).length;
+            const unreadCount = total - readCount;
+
+            document.getElementById('statsText').innerText = `Total Arsip: ${total} artikel (${readCount} sudah dibaca, ${unreadCount} belum)`;
+            
+            const markAllBtn = document.getElementById('markAllBtn');
+            if (unreadCount > 0) {
+                markAllBtn.classList.remove('hidden');
+            } else {
+                markAllBtn.classList.add('hidden');
+            }
+        }
+
+        // --- RENDER DAFTAR ARTIKEL ---
+        function renderArticles() {
+            showLoading(false);
+            const listEl = document.getElementById('articleList');
+            const emptyEl = document.getElementById('emptyState');
+            const paginationEl = document.getElementById('paginationContainer');
+
+            if (filteredArticles.length === 0) {
+                listEl.innerHTML = '';
+                emptyEl.classList.remove('hidden');
+                paginationEl.classList.add('hidden');
+                return;
+            }
+
+            emptyEl.classList.add('hidden');
+            paginationEl.classList.remove('hidden');
+
+            const totalPages = Math.ceil(filteredArticles.length / itemsPerPage) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            
+            const start = (currentPage - 1) * itemsPerPage;
+            const paginatedItems = filteredArticles.slice(start, start + itemsPerPage);
+
+            let html = '';
+            paginatedItems.forEach((art, index) => {
+                const globalIndex = start + index;
+                const identifier = art.url || art.title;
+                const isRead = readArticleIds.has(identifier);
+                const formattedDate = formatIndonesianDate(art.date);
+                
+                // Bersihkan tag HTML untuk cuplikan teks di halaman depan
+                let plainSnippet = art.content ? art.content.replace(/<[^>]+>/g, '') : '';
+                const snippet = plainSnippet ? plainSnippet.substring(0, 140) + '...' : 'Tidak ada cuplikan isi artikel.';
+
+                const cardOpacity = isRead ? 'bg-neutral-900/40 border-neutral-800/40 opacity-60 hover:opacity-90' : 'bg-neutral-900 border-neutral-800 hover:border-neutral-700';
+                const titleColor = isRead ? 'text-neutral-400 font-normal' : 'text-white font-semibold';
+                const dateColor = isRead ? 'text-neutral-600' : 'text-emerald-400';
+
+                html += `
+                    <div class="group border rounded-xl p-4 transition-all duration-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${cardOpacity}">
+                        <div class="flex-grow cursor-pointer" onclick="openModal(${globalIndex})">
+                            <div class="flex items-center gap-2 mb-1.5">
+                                <span class="text-xs font-medium px-2 py-0.5 rounded bg-neutral-800/80 ${dateColor}">${formattedDate}</span>
+                                ${isRead ? '<span class="text-[10px] uppercase tracking-wider bg-neutral-800 text-neutral-400 px-2 py-0.5 rounded font-semibold">Sudah Dibaca</span>' : ''}
+                            </div>
+                            <h3 class="text-base leading-snug transition-colors ${titleColor}">${escapeHtml(art.title || 'Tanpa Judul')}</h3>
+                            <p class="text-xs text-neutral-500 mt-1 line-clamp-1">${escapeHtml(snippet)}</p>
+                        </div>
+                        <div class="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
+                            <button onclick="event.stopPropagation(); toggleReadStatus('${escapeQuotes(identifier)}')" title="${isRead ? 'Tandai belum dibaca' : 'Tandai sudah dibaca'}" 
+                                class="p-2 rounded-lg border border-neutral-700 bg-neutral-800/60 hover:bg-neutral-700 text-neutral-300 transition text-xs flex items-center gap-1.5">
+                                ${isRead ? '<svg class="w-4 h-4 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg><span class="hidden sm:inline">Dibaca</span>' : '<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg><span class="hidden sm:inline">Tandai Dibaca</span>'}
+                            </button>
+                            <button onclick="openModal(${globalIndex})" class="px-3 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-medium rounded-lg transition">
+                                Baca
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            listEl.innerHTML = html;
+
+            document.getElementById('pageInfo').innerText = `Halaman ${currentPage} dari ${totalPages}`;
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage === totalPages;
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(filteredArticles.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderArticles();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderArticles();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        // --- MODAL DETAIL ARTIKEL ---
+        function openModal(filteredIndex) {
+            const art = filteredArticles[filteredIndex];
+            currentActiveArticleIndex = allArticles.findIndex(a => (a.url && a.url === art.url) || a.title === art.title);
+
+            document.getElementById('modalDate').innerText = formatIndonesianDate(art.date);
+            document.getElementById('modalTitle').innerText = art.title || 'Tanpa Judul';
+            
+            // Menggunakan innerHTML agar tag <p> asli terender rapi berparagraf
+            document.getElementById('modalContent').innerHTML = art.content || '<p>Isi artikel tidak tersedia.</p>';
+            
+            const linkEl = document.getElementById('modalSourceLink');
+            if (art.url) {
+                linkEl.href = art.url;
+                linkEl.classList.remove('hidden');
+            } else {
+                linkEl.classList.add('hidden');
+            }
+
+            const identifier = art.url || art.title;
+            if (!readArticleIds.has(identifier)) {
+                readArticleIds.add(identifier);
+                saveReadArticles();
+                filterAndRender();
+            }
+
+            updateModalReadButton(identifier);
+
+            document.getElementById('articleModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            document.getElementById('articleModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+            currentActiveArticleIndex = null;
+        }
+
+        function updateModalReadButton(identifier) {
+            const isRead = readArticleIds.has(identifier);
+            const btn = document.getElementById('modalToggleReadBtn');
+            if (isRead) {
+                btn.innerText = "Tandai Belum Dibaca";
+                btn.className = "text-xs px-3 py-1.5 rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700 transition";
+            } else {
+                btn.innerText = "Tandai Sudah Dibaca";
+                btn.className = "text-xs px-3 py-1.5 rounded-lg border border-neutral-700 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 transition";
+            }
+        }
+
+        function toggleCurrentModalReadStatus() {
+            if (currentActiveArticleIndex !== null) {
+                const art = allArticles[currentActiveArticleIndex];
+                const identifier = art.url || art.title;
+                toggleReadStatus(identifier);
+                updateModalReadButton(identifier);
+            }
+        }
+
+        // --- PENGATURAN URL JSON ---
+        function openConfigModal() {
+            document.getElementById('configModal').classList.remove('hidden');
+        }
+
+        function closeConfigModal() {
+            document.getElementById('configModal').classList.add('hidden');
+        }
+
+        function saveJsonUrl() {
+            const newUrl = document.getElementById('jsonUrlInput').value.trim();
+            if (newUrl) {
+                jsonUrl = newUrl;
+                localStorage.setItem('dahlan_json_url', jsonUrl);
+                closeConfigModal();
+                fetchArticles();
+            }
+        }
+
+        function showLoading(show) {
+            const loadingEl = document.getElementById('loadingState');
+            if (show) {
+                loadingEl.classList.remove('hidden');
+                document.getElementById('articleList').innerHTML = '';
+            } else {
+                loadingEl.classList.add('hidden');
+            }
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function escapeQuotes(str) {
+            return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>
